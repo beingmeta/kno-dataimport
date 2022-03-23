@@ -22,7 +22,7 @@ FULL_VERSION    ::= ${KNO_MAJOR}.${KNO_MINOR}.${PKG_VERSION}
 PATCHLEVEL      ::= $(shell u8_gitpatchcount ./etc/knomod_version)
 PATCH_VERSION   ::= ${FULL_VERSION}-${PATCHLEVEL}
 
-INSTALLS	::= "$(pwd)/installs"
+INSTALLS	::= "$(shell pwd)/installs"
 
 SUDO            ::= $(shell which sudo)
 INIT_CFLAGS     ::= ${CFLAGS}
