@@ -1,0 +1,6 @@
+[submodule "readstat"]
+	path = libreadstat
+	url = ../ReadStat.git
+[submodule "libcsv"]
+	path = libcsv
+	url = ../libcsv.git
