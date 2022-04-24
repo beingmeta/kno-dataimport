@@ -172,6 +172,25 @@ static lispval readstat_dta(lispval path,lispval opts)
     return KNO_ERROR_VALUE;}
 }
 
+DEFC_PRIM("readstat/sas7bdat",readstat_sas7bdat,
+	  KNO_MAX_ARGS(2)|KNO_MIN_ARGS(1),
+	  "Opens a Stata .sas7bdat file",
+	  {"path",kno_string_type,KNO_VOID},
+	  {"opts",kno_opts_type,KNO_FALSE})
+static lispval readstat_sas7bdat(lispval path,lispval opts)
+{
+  kno_readstat rs = get_parser(opts);
+  if (rs) rs->rs_type="sas7bdat"; else return KNO_ERROR;
+  readstat_error_t rv = readstat_parse_sas7bdat(rs->rs_parser,KNO_CSTRING(path),(void *)rs);
+  if (rv == READSTAT_HANDLER_OK)
+    return (lispval) rs;
+  else {
+    lispval rsv = (lispval) rs;
+    kno_seterr("ReadStatError","readstat/sas7bdat",readstat_error_message(rv),path);
+    kno_decref(rsv);
+    return KNO_ERROR_VALUE;}
+}
+
 static int readstat_initialized = 0;
 
 KNO_EXPORT int kno_init_readstat()
@@ -198,4 +217,5 @@ KNO_EXPORT int kno_init_readstat()
 static void link_local_cprims()
 {
   KNO_LINK_CPRIM("readstat/dta",readstat_dta,2,readstat_module);
+  KNO_LINK_CPRIM("readstat/sas7bdat",readstat_sas7bdat,2,readstat_module);
 }
