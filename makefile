@@ -25,8 +25,8 @@ PATCH_VERSION   ::= ${FULL_VERSION}-${PATCHLEVEL}
 INSTALLS	::= "$(shell pwd)/installs"
 
 SUDO            ::= $(shell which sudo)
-INIT_CFLAGS     ::= ${CFLAGS}
-INIT_LDFAGS     ::= ${LDFLAGS}
+INIT_CFLAGS     ::= ${CFLAGS} -Iinstalls/include
+INIT_LDFAGS     ::= ${LDFLAGS} -Linstalls/lib
 XCFLAGS	  	  = ${INIT_CFLAGS} ${READSTAT_CFLAGS} ${KNO_CFLAGS} ${BSON_CFLAGS} ${READSTAT_CFLAGS}
 XLDFLAGS	  = ${INIT_LDFLAGS} ${KNO_LDFLAGS} ${BSON_LDFLAGS} ${READSTAT_LDFLAGS}
 
@@ -55,11 +55,11 @@ default:
 	@make ${STATICLIBS}
 	@make readstat.${libsuffix}
 
-readstat.o: readstat.c readstat.h makefile ${STATICLIBS}
+readstat.o: readstat.c makefile ${STATICLIBS}
 	@echo XCFLAGS=${XCFLAGS}
 	@$(CC) --save-temps $(XCFLAGS) -D_FILEINFO="\"$(shell u8_fileinfo ./$< $(dirname $(pwd))/)\"" -o $@ -c $<
 	@$(MSG) CC "(READSTAT)" $@
-readstat.so: readstat.o readstat.h makefile
+readstat.so: readstat.o makefile
 	@$(MKSO) -o $@ readstat.o -Wl,-soname=$(@F).${FULL_VERSION} \
 	          -Wl,--allow-multiple-definition \
 	          -Wl,--whole-archive ${STATICLIBS} -Wl,--no-whole-archive \
@@ -75,7 +75,7 @@ readstat.dylib: readstat.o readstat.h
 
 # Components
 
-installs/lib/libcsv.a: libcsv/.git
+installs/lib/libcsv.a: libreadstat/.git
 	cd libcsv; aclocal && automake && configure --prefix=${INSTALLS} && make && make install
 
 installs/lib/libreadstat.a: libreadstat/.git
