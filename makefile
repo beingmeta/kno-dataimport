@@ -1,5 +1,5 @@
 PKGNAME		  = readstat
-LIBNAME		  = readstat
+LIBNAME		  = creadstat
 KNOCONFIG         = knoconfig
 KNOBUILD          = knobuild
 
@@ -53,25 +53,25 @@ STATICLIBS=installs/lib/libcsv.a installs/lib/libreadstat.a
 
 default:
 	@make ${STATICLIBS}
-	@make readstat.${libsuffix}
+	@make creadstat.${libsuffix}
 
-readstat.o: readstat.c makefile ${STATICLIBS}
+creadstat.o: creadstat.c makefile ${STATICLIBS}
 	@echo XCFLAGS=${XCFLAGS}
 	@$(CC) --save-temps $(XCFLAGS) -D_FILEINFO="\"$(shell u8_fileinfo ./$< $(dirname $(pwd))/)\"" -o $@ -c $<
-	@$(MSG) CC "(READSTAT)" $@
-readstat.so: readstat.o makefile
-	@$(MKSO) -o $@ readstat.o -Wl,-soname=$(@F).${FULL_VERSION} \
+	@$(MSG) CC "(CREADSTAT)" $@
+creadstat.so: creadstat.o makefile
+	@$(MKSO) -o $@ creadstat.o -Wl,-soname=$(@F).${FULL_VERSION} \
 	          -Wl,--allow-multiple-definition \
 	          -Wl,--whole-archive ${STATICLIBS} -Wl,--no-whole-archive \
 		 $(XLDFLAGS)
-	@$(MSG) MKSO "(READSTAT)" $@
+	@$(MSG) MKSO "(CREADSTAT)" $@
 
-readstat.dylib: readstat.o readstat.h
+creadstat.dylib: creadstat.o makefile ${STATICLIBS}
 	@$(MACLIBTOOL) -install_name \
 		`basename $(@F) .dylib`.${KNO_MAJOR}.dylib \
 		$(DYLIB_FLAGS) $(BSON_LDFLAGS) $(READSTAT_LDFLAGS) \
-		-o $@ readstat.o 
-	@$(MSG) MACLIBTOOL "(READSTAT)" $@
+		-o $@ creadstat.o 
+	@$(MSG) MACLIBTOOL "(CREADSTAT)" $@
 
 # Components
 
@@ -122,35 +122,7 @@ deep-fresh: deep-clean
 gitup gitup-trunk:
 	git checkout trunk && git pull
 
-# Alpine packaging
-
-staging/alpine:
-	@install -d $@
-
-staging/alpine/APKBUILD: dist/alpine/APKBUILD staging/alpine
-	cp dist/alpine/APKBUILD staging/alpine
-
-staging/alpine/kno-${PKG_NAME}.tar: staging/alpine
-	git archive --prefix=kno-${PKG_NAME}/ -o staging/alpine/kno-${PKG_NAME}.tar HEAD
-
-dist/alpine.setup: staging/alpine/APKBUILD makefile ${STATICLIBS} \
-	staging/alpine/kno-${PKG_NAME}.tar
-	if [ ! -d ${APK_ARCH_DIR} ]; then mkdir -p ${APK_ARCH_DIR}; fi && \
-	( cd staging/alpine; \
-		abuild -P ${APKREPO} clean cleancache cleanpkg && \
-		abuild checksum ) && \
-	touch $@
-
-dist/alpine.done: dist/alpine.setup
-	( cd staging/alpine; abuild -P ${APKREPO} ) && touch $@
-dist/alpine.installed: dist/alpine.setup
-	( cd staging/alpine; abuild -i -P ${APKREPO} ) && touch dist/alpine.done && touch $@
-
-TAGS: readstat.c readstat.h scheme/readstat/*.scm
+TAGS: creadstat.c scheme/readstat/*.scm
 	etags -o $@ $^
 
-alpine: dist/alpine.done
-install-alpine: dist/alpine.done
-
-.PHONY: alpine
 

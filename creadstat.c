@@ -32,12 +32,12 @@
 #include <limits.h>
 #include <readstat.h>
 
-KNO_EXPORT int kno_init_readstat(void) KNO_LIBINIT_FN;
+KNO_EXPORT int kno_init_creadstat(void) KNO_LIBINIT_FN;
 
 kno_lisp_type kno_readstat_type;
 #define KNO_READSTAT_TYPE     0xEC7900L
 
-static lispval readstat_module;
+static lispval creadstat_module;
 
 typedef struct KNO_READSTAT {
   KNO_ANNOTATED_HEADER;
@@ -457,7 +457,7 @@ static lispval readstat_sas7bdat(lispval path,lispval opts)
 
 static int readstat_initialized = 0;
 
-KNO_EXPORT int kno_init_readstat()
+KNO_EXPORT int kno_init_creadstat()
 {
   if (readstat_initialized) return 0;
   readstat_initialized = 1;
@@ -467,11 +467,11 @@ KNO_EXPORT int kno_init_readstat()
   kno_unparsers[kno_readstat_type] = unparse_readstat;
   kno_recyclers[kno_readstat_type] = recycle_readstat;
 
-  readstat_module = kno_new_cmodule("readstat",0,kno_init_readstat);
+  creadstat_module = kno_new_cmodule("creadstat",0,kno_init_creadstat);
 
   link_local_cprims();
 
-  kno_finish_module(readstat_module);
+  kno_finish_module(creadstat_module);
 
   u8_register_source_file(_FILEINFO);
 
@@ -480,9 +480,9 @@ KNO_EXPORT int kno_init_readstat()
 
 static void link_local_cprims()
 {
-  KNO_LINK_CPRIM("readstat/dta",readstat_dta,2,readstat_module);
-  KNO_LINK_CPRIM("readstat/sas7bdat",readstat_sas7bdat,2,readstat_module);
-  KNO_LINK_CPRIM("readstat-source",readstat_source,1,readstat_module);
-  KNO_LINK_CPRIM("readstat-type",readstat_source,1,readstat_module);
-  KNO_LINK_CPRIM("readstat-records",readstat_records,1,readstat_module);
+  KNO_LINK_CPRIM("readstat/dta",readstat_dta,2,creadstat_module);
+  KNO_LINK_CPRIM("readstat/sas7bdat",readstat_sas7bdat,2,creadstat_module);
+  KNO_LINK_CPRIM("readstat-source",readstat_source,1,creadstat_module);
+  KNO_LINK_CPRIM("readstat-type",readstat_source,1,creadstat_module);
+  KNO_LINK_CPRIM("readstat-records",readstat_records,1,creadstat_module);
 }
