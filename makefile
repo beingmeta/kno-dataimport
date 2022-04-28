@@ -57,7 +57,7 @@ default:
 
 creadstat.o: creadstat.c makefile ${STATICLIBS}
 	@echo XCFLAGS=${XCFLAGS}
-	@$(CC) --save-temps $(XCFLAGS) -D_FILEINFO="\"$(shell u8_fileinfo ./$< $(dirname $(pwd))/)\"" -o $@ -c $<
+	@$(CC) --save-temps $(XCFLAGS) -fPIC -D_FILEINFO="\"$(shell u8_fileinfo ./$< $(dirname $(pwd))/)\"" -o $@ -c $<
 	@$(MSG) CC "(CREADSTAT)" $@
 creadstat.so: creadstat.o makefile
 	@$(MKSO) -o $@ creadstat.o -Wl,-soname=$(@F).${FULL_VERSION} \

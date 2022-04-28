@@ -25,6 +25,7 @@
 #include "kno/sql.h"
 
 #include <libu8/libu8.h>
+#include <libu8/u8convert.h>
 #include <libu8/u8printf.h>
 #include <libu8/u8crypto.h>
 
@@ -45,17 +46,20 @@ typedef struct KNO_READSTAT {
   u8_context rs_type;
   unsigned int rs_bits;
   int rs_n_vars;
+  int rs_n_slots;
   readstat_parser_t *rs_parser;
+  u8_encoding rs_text_encoding;
+  lispval rs_idslot;
   struct KNO_SCHEMAP *rs_dataframe;
-  lispval *rs_values;
-  long long rs_obvsid;
+  long long rs_obsvid;
   struct KNO_SCHEMAP *rs_observation;
-  int rs_seen_count;
+  lispval *rs_values;
+  lispval rs_callback;
   lispval rs_output;
-  lispval rs_callback;} *kno_readstat;
+  int rs_counter;} *kno_readstat;
 
 DEF_KNOSYM(nvars); DEF_KNOSYM(rows); DEF_KNOSYM(label); DEF_KNOSYM(tablename);
-DEF_KNOSYM(encname); DEF_KNOSYM(is64bit);
+DEF_KNOSYM(encname); DEF_KNOSYM(is64bit); DEF_KNOSYM(idslot);
 DEF_KNOSYM(formatversion); DEF_KNOSYM(name);
 DEF_KNOSYM(string); DEF_KNOSYM(stringref);
 DEF_KNOSYM(int8); DEF_KNOSYM(int16); DEF_KNOSYM(int32);
@@ -165,18 +169,24 @@ static lispval get_lisp_value(readstat_value_t *val)
 static int metadata_handler(readstat_metadata_t *md,void *state)
 {
   struct KNO_READSTAT *rs = (kno_readstat) state;
-  int n_vars = md->var_count;
-  lispval *schema = u8_alloc_n(n_vars,lispval);
-  int i = 0; while (i<n_vars) {schema[i]=KNO_INT2FIX(i); i++;}
+  int n_vars = md->var_count, n_slots = n_vars;
+  lispval *schema = u8_alloc_n(n_slots,lispval);
+  if (! ((KNO_VOIDP(rs->rs_idslot))||(KNO_FALSEP(rs->rs_idslot))) ) {
+    n_slots++;}
+  int i = 0; while (i<n_slots) {schema[i]=KNO_INT2FIX(i); i++;}
   struct KNO_SCHEMAP *template;
   lispval dfptr = kno_make_schemap
-    (NULL,n_vars,KNO_DATAFRAME_TEMPLATE_FLAGS,schema,NULL);
+    (NULL,n_slots,KNO_DATAFRAME_TEMPLATE_FLAGS,schema,NULL);
   if (KNO_ABORTED(dfptr)) {
     u8_free(schema);
     return dfptr;}
   else template= (kno_schemap) dfptr;
   rs->rs_dataframe = template;
   rs->rs_n_vars    = n_vars;
+  rs->rs_n_slots   = n_slots;
+  if (rs->rs_n_slots>rs->rs_n_vars) {
+    lispval *schema = template->table_schema;
+    schema[rs->rs_n_vars]=rs->rs_idslot;}
   lispval annotations = rs->annotations;
   if (md->var_count>=0) {
     kno_store(annotations,KNOSYM(nvars),KNO_INT(md->var_count));}
@@ -186,8 +196,9 @@ static int metadata_handler(readstat_metadata_t *md,void *state)
     store_string(annotations,KNOSYM(tablename),md->table_name);
   if (md->file_label)
     store_string(annotations,KNOSYM(label),md->file_label);
-  if (md->file_encoding)
+  if (md->file_encoding) {
     store_string(annotations,KNOSYM(encname),md->file_encoding);
+    rs->rs_text_encoding=u8_get_encoding(md->file_encoding);}
   kno_store(annotations,KNOSYM(is64bit),(md->is64bit)?(KNO_TRUE):(KNO_FALSE));
   if (md->file_format_version>0)
     kno_store(annotations,KNOSYM(formatversion),KNO_INT(md->file_format_version));
@@ -242,43 +253,47 @@ static int log_variable_handler(int ix,readstat_variable_t *vd,const
 
 static void finish_observation(kno_readstat rs)
 {
-  if ( (rs->rs_obvsid >= 0) && (rs->rs_observation) ) {
+  if ( (rs->rs_obsvid >= 0) && (rs->rs_observation) ) {
     lispval observation = (lispval) rs->rs_observation;
     lispval callback = rs->rs_callback;
     lispval aggregate = rs->rs_output;
-    if ( (KNO_EMPTYP(aggregate)) || (KNO_CHOICEP(aggregate)) ||
-	 (KNO_PRECHOICEP(aggregate)) ) {
+    int obsvid = rs->rs_obsvid;
+    int free_observation =0;
+    if (KNO_VOIDP(aggregate))
+      free_observation=1;
+    else if ( (KNO_EMPTYP(aggregate)) ||
+	      (KNO_CHOICEP(aggregate)) ||
+	      (KNO_PRECHOICEP(aggregate)) ) {
       KNO_ADD_TO_CHOICE(aggregate,observation);
       rs->rs_output=aggregate;}
     else if ( (KNO_EMPTY_LISTP(aggregate)) || (KNO_PAIRP(aggregate)) ) {
       aggregate = kno_init_pair(NULL,observation,aggregate);
       rs->rs_output=aggregate;}
-    else if (KNO_VOIDP(callback)) {
+    else {
       KNO_ADD_TO_CHOICE(aggregate,observation);
       rs->rs_output=aggregate;}
-    else NO_ELSE;
     if (KNO_APPLICABLEP(callback)) {
-      lispval args[3]={observation,KNO_INT(rs->rs_obvsid),((lispval)rs)};
+      lispval args[3]={observation,KNO_INT(obsvid),((lispval)rs)};
       lispval result = kno_apply(callback,3,args);
       if (KNO_TROUBLEP(result)) {
 	u8_exception ex = u8_pop_exception();
 	u8_log(LOGERR,"ReadStatCallbackError",
 	       "%s<%s>(%s) applying %q to observation %lld= %q",
 	       ex->u8x_cond,ex->u8x_context,ex->u8x_details,
-	       callback,rs->rs_obvsid,observation);
+	       callback,obsvid,observation);
 	u8_free_exception(ex,0);}}
     rs->rs_observation=NULL;
-    kno_decref(observation);}
+    if (free_observation) kno_decref(observation);}
 }
 
 static void init_observation(kno_readstat rs,long long obsv)
 {
-  if (rs->rs_obvsid == obsv) return;
+  if (rs->rs_obsvid == obsv) return;
   else if (obsv<0) return;
-  else if (rs->rs_obvsid >=0 )
+  else if (rs->rs_obsvid >=0 )
     finish_observation(rs);
   else NO_ELSE;
-  rs->rs_obvsid = obsv;
+  rs->rs_obsvid = obsv;
   struct KNO_SCHEMAP *df = rs->rs_dataframe;
   int n = df->schema_length;
   lispval sv = kno_make_schemap
@@ -288,7 +303,9 @@ static void init_observation(kno_readstat rs,long long obsv)
   int i = 0; while (i<n) values[i++]=KNO_VOID;
   rs->rs_values = values;
   rs->rs_observation = observation;
-  rs->rs_seen_count=0;
+  /* Initialize the observation field if specified */
+  if (rs->rs_n_slots>rs->rs_n_vars) values[rs->rs_n_vars]=KNO_INT(obsv);
+  rs->rs_counter++;
 }
 
 static int value_handler(int obs_index,
@@ -297,8 +314,8 @@ static int value_handler(int obs_index,
 			 void *state)
 {
   struct KNO_READSTAT *rs = (kno_readstat) state;
-  if (obs_index != rs->rs_obvsid) {
-    if (rs->rs_obvsid>=0)
+  if (obs_index != rs->rs_obsvid) {
+    if (rs->rs_obsvid>=0)
       finish_observation(rs);
     init_observation(rs,obs_index);}
   int var_index = vd->index;
@@ -334,20 +351,25 @@ kno_readstat get_parser(lispval opts)
   KNO_INIT_CONS(result,kno_readstat_type);
   lispval annotations = result->annotations  = kno_make_slotmap(17,0,NULL);
   kno_store(annotations,KNOSYM_OPTS,opts);
-  result->rs_parser=parser;
   result->rs_source=NULL;
   result->rs_type="not-initialized";
-  result->rs_n_vars = -1;
   result->rs_bits = 0;
+  result->rs_n_vars = -1;
+  result->rs_parser = parser;
+  result->rs_text_encoding = NULL;
+  result->rs_idslot = kno_getopt(opts,KNOSYM(idslot),KNO_VOID);
+
   result->rs_dataframe   = NULL;
-  result->rs_obvsid = -1;
+  result->rs_obsvid = -1;
   result->rs_observation = NULL;
+
   lispval callback = kno_getopt(opts,KNOSYM(callback),KNO_VOID);
   lispval aggregate = kno_getopt(opts,KNOSYM(aggregate),KNO_VOID);
   result->rs_callback    = callback;
   if ( ( KNO_VOIDP(callback)) && (KNO_VOIDP(aggregate)) )
     aggregate=KNO_EMPTY;
   result->rs_output=aggregate;
+  result->rs_counter = 0;
 #if 0
   readstat_set_metadata_handler(parser,metadata_handler);
   readstat_set_variable_handler(parser,variable_handler);
@@ -390,6 +412,19 @@ static lispval readstat_source(lispval arg)
   kno_readstat rs = (kno_readstat) arg;
   if (rs->rs_source)
     return knostring(rs->rs_source);
+  else return KNO_FALSE;
+}
+
+DEFC_PRIM("readstat-dataframe",readstat_dataframe,
+	  KNO_MAX_ARGS(1)|KNO_MIN_ARGS(1),
+	  "Gets the defining dataframe of a readstat object",
+	  {"rs",KNO_READSTAT_TYPE,KNO_VOID})
+static lispval readstat_dataframe(lispval arg)
+{
+  kno_readstat rs = (kno_readstat) arg;
+  if (rs->rs_dataframe) {
+    lispval df = (lispval) (rs->rs_dataframe);
+    return kno_incref(df);}
   else return KNO_FALSE;
 }
 
@@ -436,6 +471,44 @@ static lispval readstat_dta(lispval path,lispval opts)
     return KNO_ERROR_VALUE;}
 }
 
+DEFC_PRIM("readstat/sav",readstat_sav,
+	  KNO_MAX_ARGS(2)|KNO_MIN_ARGS(1),
+	  "Opens a Stata .sav file",
+	  {"path",kno_string_type,KNO_VOID},
+	  {"opts",kno_opts_type,KNO_FALSE})
+static lispval readstat_sav(lispval path,lispval opts)
+{
+  kno_readstat rs = get_parser(opts);
+  if (rs) rs->rs_type="sav"; else return KNO_ERROR;
+  readstat_error_t rv = readstat_parse_sav(rs->rs_parser,KNO_CSTRING(path),(void *)rs);
+  if (rv == READSTAT_HANDLER_OK)
+    return (lispval) rs;
+  else {
+    lispval rsv = (lispval) rs;
+    kno_seterr("ReadStatError","readstat/sav",readstat_error_message(rv),path);
+    kno_decref(rsv);
+    return KNO_ERROR_VALUE;}
+}
+
+DEFC_PRIM("readstat/por",readstat_por,
+	  KNO_MAX_ARGS(2)|KNO_MIN_ARGS(1),
+	  "Opens a Stata .por file",
+	  {"path",kno_string_type,KNO_VOID},
+	  {"opts",kno_opts_type,KNO_FALSE})
+static lispval readstat_por(lispval path,lispval opts)
+{
+  kno_readstat rs = get_parser(opts);
+  if (rs) rs->rs_type="por"; else return KNO_ERROR;
+  readstat_error_t rv = readstat_parse_por(rs->rs_parser,KNO_CSTRING(path),(void *)rs);
+  if (rv == READSTAT_HANDLER_OK)
+    return (lispval) rs;
+  else {
+    lispval rsv = (lispval) rs;
+    kno_seterr("ReadStatError","readstat/por",readstat_error_message(rv),path);
+    kno_decref(rsv);
+    return KNO_ERROR_VALUE;}
+}
+
 DEFC_PRIM("readstat/sas7bdat",readstat_sas7bdat,
 	  KNO_MAX_ARGS(2)|KNO_MIN_ARGS(1),
 	  "Opens a Stata .sas7bdat file",
@@ -451,6 +524,44 @@ static lispval readstat_sas7bdat(lispval path,lispval opts)
   else {
     lispval rsv = (lispval) rs;
     kno_seterr("ReadStatError","readstat/sas7bdat",readstat_error_message(rv),path);
+    kno_decref(rsv);
+    return KNO_ERROR_VALUE;}
+}
+
+DEFC_PRIM("readstat/sas7bcat",readstat_sas7bcat,
+	  KNO_MAX_ARGS(2)|KNO_MIN_ARGS(1),
+	  "Opens a Stata .sas7bcat file",
+	  {"path",kno_string_type,KNO_VOID},
+	  {"opts",kno_opts_type,KNO_FALSE})
+static lispval readstat_sas7bcat(lispval path,lispval opts)
+{
+  kno_readstat rs = get_parser(opts);
+  if (rs) rs->rs_type="sas7bcat"; else return KNO_ERROR;
+  readstat_error_t rv = readstat_parse_sas7bcat(rs->rs_parser,KNO_CSTRING(path),(void *)rs);
+  if (rv == READSTAT_HANDLER_OK)
+    return (lispval) rs;
+  else {
+    lispval rsv = (lispval) rs;
+    kno_seterr("ReadStatError","readstat/sas7bcat",readstat_error_message(rv),path);
+    kno_decref(rsv);
+    return KNO_ERROR_VALUE;}
+}
+
+DEFC_PRIM("readstat/xport",readstat_xport,
+	  KNO_MAX_ARGS(2)|KNO_MIN_ARGS(1),
+	  "Opens a Stata .xport file",
+	  {"path",kno_string_type,KNO_VOID},
+	  {"opts",kno_opts_type,KNO_FALSE})
+static lispval readstat_xport(lispval path,lispval opts)
+{
+  kno_readstat rs = get_parser(opts);
+  if (rs) rs->rs_type="xport"; else return KNO_ERROR;
+  readstat_error_t rv = readstat_parse_xport(rs->rs_parser,KNO_CSTRING(path),(void *)rs);
+  if (rv == READSTAT_HANDLER_OK)
+    return (lispval) rs;
+  else {
+    lispval rsv = (lispval) rs;
+    kno_seterr("ReadStatError","readstat/xport",readstat_error_message(rv),path);
     kno_decref(rsv);
     return KNO_ERROR_VALUE;}
 }
@@ -480,9 +591,14 @@ KNO_EXPORT int kno_init_creadstat()
 
 static void link_local_cprims()
 {
-  KNO_LINK_CPRIM("readstat/dta",readstat_dta,2,creadstat_module);
-  KNO_LINK_CPRIM("readstat/sas7bdat",readstat_sas7bdat,2,creadstat_module);
+  KNO_LINK_CPRIM("readstat/load/dta",readstat_dta,2,creadstat_module);
+  KNO_LINK_CPRIM("readstat/load/sav",readstat_sav,2,creadstat_module);
+  KNO_LINK_CPRIM("readstat/load/por",readstat_por,2,creadstat_module);
+  KNO_LINK_CPRIM("readstat/load/sas7bdat",readstat_sas7bdat,2,creadstat_module);
+  KNO_LINK_CPRIM("readstat/load/sas7bcat",readstat_sas7bcat,2,creadstat_module);
+  KNO_LINK_CPRIM("readstat/load/xport",readstat_xport,2,creadstat_module);
   KNO_LINK_CPRIM("readstat-source",readstat_source,1,creadstat_module);
+  KNO_LINK_CPRIM("readstat-dataframe",readstat_dataframe,1,creadstat_module);
   KNO_LINK_CPRIM("readstat-type",readstat_source,1,creadstat_module);
   KNO_LINK_CPRIM("readstat-records",readstat_records,1,creadstat_module);
 }
