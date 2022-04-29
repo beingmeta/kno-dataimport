@@ -27,7 +27,7 @@ INSTALLS	::= "$(shell pwd)/installs"
 SUDO            ::= $(shell which sudo)
 INIT_CFLAGS     ::= ${CFLAGS} -Iinstalls/include
 INIT_LDFAGS     ::= ${LDFLAGS} -Linstalls/lib
-XCFLAGS	  	  = ${INIT_CFLAGS} ${READSTAT_CFLAGS} ${KNO_CFLAGS} ${BSON_CFLAGS} ${READSTAT_CFLAGS}
+XCFLAGS	  	  = ${INIT_CFLAGS} ${READSTAT_CFLAGS} ${KNO_CFLAGS} ${DEBUG_CFLAGS}
 XLDFLAGS	  = ${INIT_LDFLAGS} ${KNO_LDFLAGS} ${BSON_LDFLAGS} ${READSTAT_LDFLAGS}
 
 MKSO		  = $(CC) -shared $(LDFLAGS) $(LIBS)
@@ -73,6 +73,9 @@ creadstat.dylib: creadstat.o makefile ${STATICLIBS}
 		-o $@ creadstat.o 
 	@$(MSG) MACLIBTOOL "(CREADSTAT)" $@
 
+debug: clean
+	make DEBUG_CFLAGS='-O0 -g3' default
+
 # Components
 
 installs/lib/libcsv.a: libreadstat/.git
@@ -102,9 +105,6 @@ install-cmodule: ${CMODULES}
 
 ${INSTALLMODS}/readstat:
 	${SUDO} ${DIRINSTALL} $@
-
-install-scheme-zip: ${INSTALLMODS}/readstat.zip
-	${SUDO} ${MODINSTALL} scheme/readstat/*.scm ${INSTALLMODS}/readstat
 
 install-scheme: ${INSTALLMODS}/readstat
 	${SUDO} ${MODINSTALL} scheme/readstat/*.scm ${INSTALLMODS}/readstat
