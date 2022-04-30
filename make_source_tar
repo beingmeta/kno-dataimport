@@ -1,0 +1,21 @@
+#!/bin/sh
+TARGET=$1
+TARNAME=$(basename ${TARGET})
+git submodule update;
+git archive -o ${TARGET} HEAD
+cp etc/knomod_version BASE_VERSION
+u8_gitversion etc/knomod_version > VERSION
+u8_gitversion etc/knomod_version -full > FULL_VERSION
+u8_gitbranch > BRANCH
+tar -rf ${TARGET} VERSION BASE_VERSION FULL_VERSION BRANCH
+("cd" libreadstat;
+ git describe > VERSION_CURRENT
+ git archive --prefix=libreadstat/ -o ../libreadstat.tar HEAD);
+tar -rf libreadstat.tar libreadstat/VERSION_CURRENT
+("cd" libcsv;
+ git describe > VERSION_CURRENT
+ git archive --prefix=libcsv/ -o ../libcsv.tar HEAD);
+tar --concatenate --file=${TARGET} libcsv.tar
+tar --concatenate --file=${TARGET} libreadstat.tar
+rm libcsv.tar libreadstat.tar
+
