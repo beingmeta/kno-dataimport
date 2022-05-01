@@ -9,12 +9,17 @@ u8_gitversion etc/knomod_version -full > FULL_VERSION
 u8_gitbranch > BRANCH
 tar -rf ${TARGET} VERSION BASE_VERSION FULL_VERSION BRANCH
 ("cd" libreadstat;
- git describe > VERSION_CURRENT
+ if ! git describe > VERSION_CURRENT; then
+     echo "Couldn't find current version tag for libreadstat";
+     exit; fi;
  git archive --prefix=libreadstat/ -o ../libreadstat.tar HEAD);
 tar -rf libreadstat.tar libreadstat/VERSION_CURRENT
 ("cd" libcsv;
- git describe > VERSION_CURRENT
+ if ! git describe > VERSION_CURRENT; then
+     echo "Couldn't find current version tag for libcsv";
+     exit; fi;
  git archive --prefix=libcsv/ -o ../libcsv.tar HEAD);
+tar -rf libcsv.tar libcsv/VERSION_CURRENT
 tar --concatenate --file=${TARGET} libcsv.tar
 tar --concatenate --file=${TARGET} libreadstat.tar
 rm libcsv.tar libreadstat.tar
