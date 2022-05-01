@@ -2,6 +2,8 @@
 TARGET=$1
 TARNAME=$(basename ${TARGET})
 git submodule update;
+git submodule foreach git checkout master;
+git submodule foreach git pull;
 git archive -o ${TARGET} HEAD
 cp etc/knomod_version BASE_VERSION
 u8_gitversion etc/knomod_version > VERSION
