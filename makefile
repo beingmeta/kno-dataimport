@@ -78,10 +78,12 @@ debug: clean
 
 # Components
 
-installs/lib/libcsv.a: libreadstat/.git
+installs/lib/libcsv.a: libcsv/.git
+	echo "building libcsv.a"
 	cd libcsv; aclocal && automake && ./configure --prefix=${INSTALLS} && make && make install
 
-installs/lib/libreadstat.a: libreadstat/.git
+installs/lib/libreadstat.a: libreadstat/.git installs/lib/libcsv.a
+	echo "building libreadstat.a"
 	cd libreadstat; ./autogen.sh && ./configure --prefix=${INSTALLS} && make && make install
 
 libcsv/.git libreadstat/.git:
