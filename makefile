@@ -84,7 +84,8 @@ installs/lib/libcsv.a: libcsv/.git
 
 installs/lib/libreadstat.a: libreadstat/.git installs/lib/libcsv.a
 	echo "building libreadstat.a"
-	cd libreadstat; ./autogen.sh && ./configure --prefix=${INSTALLS} && make && make install
+	# This sometimes fails unless we run `make clean` before `make`.
+	cd libreadstat; ./autogen.sh && ./configure --prefix=${INSTALLS} && make clean && make && make install
 
 libcsv/.git libreadstat/.git:
 	git submodule update --init
