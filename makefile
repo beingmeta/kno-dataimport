@@ -79,10 +79,10 @@ debug: clean
 # Components
 
 installs/lib/libcsv.a: libcsv/Makefile.am
-	./build_libcsv
+	./build_libcsv $(INSTALLS)
 
 installs/lib/libreadstat.a: libreadstat/Makefile.am installs/lib/libcsv.a
-	./build_libreadstta
+	./build_libreadstat $(INSTALLS)
 
 libcsv/Makefile.am libreadstat/Makefile.am:
 	git submodule update --init

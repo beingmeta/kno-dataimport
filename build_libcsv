@@ -2,6 +2,7 @@
 
 export CFLAGS=
 export LDFLAGS= 
+export INSTALLS=${1:-$(pwd)/installs}
 
 echo "building libcsv.a"
 

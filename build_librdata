@@ -1,0 +1,8 @@
+#!/bin/sh
+
+export CFLAGS=
+export LDFLAGS= 
+export INSTALLS=${1:-$(pwd)/installs}
+
+echo "building librdata.a"
+cd librdata; ./autogen.sh && ./configure CFLAGS= --prefix=${INSTALLS} && make && make install
