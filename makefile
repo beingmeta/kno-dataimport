@@ -79,13 +79,10 @@ debug: clean
 # Components
 
 installs/lib/libcsv.a: libcsv/Makefile.am
-	echo "building libcsv.a"
-	CFLAGS= LDFLAGS= cd libcsv; aclocal && automake && ./configure --prefix=${INSTALLS} && make && make install
+	./build_libcsv
 
 installs/lib/libreadstat.a: libreadstat/Makefile.am installs/lib/libcsv.a
-	echo "building libreadstat.a"
-	# This sometimes fails unless we run `make clean` before `make`.
-	CFLAGS= LDFLAGS= cd libreadstat; ./autogen.sh && ./configure CFLAGS= --prefix=${INSTALLS} && make clean && make && make install
+	./build_libreadstta
 
 libcsv/Makefile.am libreadstat/Makefile.am:
 	git submodule update --init

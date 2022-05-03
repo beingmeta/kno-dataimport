@@ -1,0 +1,7 @@
+#!/bin/sh
+
+export CFLAGS=
+export LDFLAGS= 
+
+echo "building libreadstat.a"
+cd libreadstat; ./autogen.sh && ./configure CFLAGS= --prefix=${INSTALLS} && make && make install

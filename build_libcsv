@@ -1,0 +1,9 @@
+#!/bin/sh
+
+export CFLAGS=
+export LDFLAGS= 
+
+echo "building libcsv.a"
+
+cd libcsv
+aclocal && automake && ./configure --prefix=${INSTALLS} && make && make install
