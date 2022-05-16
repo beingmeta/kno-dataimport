@@ -8,4 +8,4 @@
 	branch = master
 [submodule "librdata"]
 	path = librdata
-	url = git@github.com:beingmeta/librdata.git
+	url = ../librdata.git
