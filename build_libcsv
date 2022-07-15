@@ -7,4 +7,6 @@ export INSTALLS=${1:-$(pwd)/installs}
 echo "building libcsv.a"
 
 cd libcsv
-aclocal && automake && ./configure --prefix=${INSTALLS} && make && make install
+#aclocal
+#automake
+./configure --prefix=${INSTALLS} && make && make install
