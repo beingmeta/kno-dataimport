@@ -111,9 +111,11 @@ install-scheme: ${INSTALLMODS}/readstat
 
 clean:
 	rm -f *.o *.${libsuffix} *.${libsuffix}*
-deep-clean: clean
-	if test -f mongo-c-driver/Makefile; then cd mongo-c-driver; make clean; fi;
-	rm -rf mongoc-build install
+deepclean deep-clean: clean
+	if [ -f libreadstat/Makefile ]; then cd libreadstat; make clean; fi
+	if [ -f librdata/Makefile ]; then cd librdata; make clean; fi
+	if [ -f libcsv/Makefile ]; then cd libcsv; make clean; fi
+	rm -rf build_*
 fresh: clean
 	make
 deep-fresh: deep-clean
