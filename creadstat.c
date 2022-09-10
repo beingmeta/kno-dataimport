@@ -368,9 +368,9 @@ static void output_observation
 (kno_readstat rs,lispval observation,int obsid)
 {
   lispval output=rs->rs_output;
-  if (KNO_FUNCTIONP(output)) {
+  if (KNO_PROCP(output)) {
     lispval args[3]={observation,KNO_INT(obsid),((lispval)rs)};
-    int arity = ((kno_function)output)->fcn_arity;
+    int arity = ((kno_proc)output)->fcn_arity;
     int call_width = (arity<0) ? (3) : (arity<3) ? (arity) : (3);
     lispval result = kno_apply(output,call_width,args);
     if (KNO_TROUBLEP(result)) {
