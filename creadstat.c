@@ -32,6 +32,19 @@
 #include <limits.h>
 #include <readstat.h>
 
+/* Compatability */
+
+#if (KNO_MAJOR_VERSION < 2210)
+#define KNO_PROCP KNO_FUNCTIONP
+#define kno_proc kno_function
+#endif
+
+#ifndef KNO_FUTURE_MONOTONIC
+#ifdef KNO_FUTURE_ONESHOT
+#define KNO_FUTURE_MONOTONIC KNO_FUTURE_ONESHOT
+#endif
+#endif
+
 /* 
    TODO:
    * Merge callback and output, include futures as output.
@@ -368,9 +381,9 @@ static void output_observation
 (kno_readstat rs,lispval observation,int obsid)
 {
   lispval output=rs->rs_output;
-  if (KNO_FUNCTIONP(output)) {
+  if (KNO_PROCP(output)) {
     lispval args[3]={observation,KNO_INT(obsid),((lispval)rs)};
-    int arity = ((kno_function)output)->fcn_arity;
+    int arity = ((kno_proc)output)->fcn_arity;
     int call_width = (arity<0) ? (3) : (arity<3) ? (arity) : (3);
     lispval result = kno_apply(output,call_width,args);
     if (KNO_TROUBLEP(result)) {
