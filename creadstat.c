@@ -32,6 +32,19 @@
 #include <limits.h>
 #include <readstat.h>
 
+/* Compatability */
+
+#if (KNO_MAJOR_VERSION < 2210)
+#define KNO_PROCP KNO_FUNCTIONP
+#define kno_proc kno_function
+#endif
+
+#ifndef KNO_FUTURE_MONOTONIC
+#ifdef KNO_FUTURE_ONESHOT
+#define KNO_FUTURE_MONOTONIC KNO_FUTURE_ONESHOT
+#endif
+#endif
+
 /* 
    TODO:
    * Merge callback and output, include futures as output.
